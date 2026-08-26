@@ -47,6 +47,12 @@
   .hidden { display:none; }
   #loading { text-align:center; color:#94a3b8; padding:60px 0; font-size:13px; }
   .banner { display:flex; align-items:center; gap:8px; background:#f0fdfa; border:1px solid #99f6e4; color:#0f766e; border-radius:10px; padding:10px 12px; margin-bottom:14px; font-size:12px; }
+  .namegrid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px; }
+  .namebtn {
+    background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:18px 10px; text-align:center;
+    font-weight:600; font-size:14px; cursor:pointer; color:#0f172a;
+  }
+  .namebtn:hover { border-color:#5eead4; }
 </style>
 </head>
 <body>
@@ -59,10 +65,9 @@
     <h2>🧑 スタッフログイン</h2>
 
     <div id="stepId">
-      <label>お名前(ログインID)</label>
-      <input id="nameInput" placeholder="例) 田中 太郎" />
+      <label>お名前を選んでください</label>
+      <div id="nameGrid" class="namegrid"></div>
       <div id="idError" class="error hidden"></div>
-      <button id="submitIdBtn" onclick="submitId()">次へ</button>
     </div>
 
     <div id="stepSetup" class="hidden">
@@ -149,20 +154,35 @@ let myShifts = [];       // このスタッフの希望シフト全件
 let monthCounts = {};    // 全スタッフ分の日別集計(休み希望人数・勤務希望人数)
 let ym = (() => { const d = new Date(); return { y: d.getFullYear(), m: d.getMonth() + 1 }; })();
 
-function init() {
+async function init() {
   document.getElementById("loading").classList.add("hidden");
   document.getElementById("loginView").classList.remove("hidden");
+  const grid = document.getElementById("nameGrid");
+  const errEl = document.getElementById("idError");
+  try {
+    const list = await apiCall(API_URL, "getStaffList");
+    grid.innerHTML = "";
+    list.forEach((s) => {
+      const btn = document.createElement("div");
+      btn.className = "namebtn";
+      btn.textContent = s.name;
+      btn.onclick = () => selectStaffName(s.name);
+      grid.appendChild(btn);
+    });
+    if (list.length === 0) {
+      errEl.textContent = "スタッフが登録されていません。管理者に登録を依頼してください。";
+      errEl.classList.remove("hidden");
+    }
+  } catch (e) {
+    errEl.textContent = "通信エラー: " + e.message;
+    errEl.classList.remove("hidden");
+  }
 }
 init();
 
-async function submitId() {
-  const name = document.getElementById("nameInput").value.trim();
+async function selectStaffName(name) {
   const errEl = document.getElementById("idError");
   errEl.classList.add("hidden");
-  if (!name) return;
-  const btn = document.getElementById("submitIdBtn");
-  const originalText = btn.textContent;
-  btn.textContent = "確認中..."; btn.disabled = true;
   try {
     const result = await apiCall(API_URL, "staffLogin", { name, password: "" });
     if (!result.ok && result.error === "not_found") {
@@ -182,8 +202,6 @@ async function submitId() {
   } catch (e) {
     errEl.textContent = "通信エラー: " + e.message;
     errEl.classList.remove("hidden");
-  } finally {
-    btn.textContent = originalText; btn.disabled = false;
   }
 }
 
@@ -227,7 +245,6 @@ function logout() {
   document.getElementById("stepId").classList.remove("hidden");
   document.getElementById("stepSetup").classList.add("hidden");
   document.getElementById("stepPassword").classList.add("hidden");
-  document.getElementById("nameInput").value = "";
 }
 
 async function showMain() {
