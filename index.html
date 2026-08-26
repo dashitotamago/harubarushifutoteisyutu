@@ -154,22 +154,24 @@ let myShifts = [];       // このスタッフの希望シフト全件
 let monthCounts = {};    // 全スタッフ分の日別集計(休み希望人数・勤務希望人数)
 let ym = (() => { const d = new Date(); return { y: d.getFullYear(), m: d.getMonth() + 1 }; })();
 
+let staffListCache = [];
+
 async function init() {
   document.getElementById("loading").classList.add("hidden");
   document.getElementById("loginView").classList.remove("hidden");
   const grid = document.getElementById("nameGrid");
   const errEl = document.getElementById("idError");
   try {
-    const list = await apiCall(API_URL, "getStaffList");
+    staffListCache = await apiCall(API_URL, "getStaffList");
     grid.innerHTML = "";
-    list.forEach((s) => {
+    staffListCache.forEach((s) => {
       const btn = document.createElement("div");
       btn.className = "namebtn";
       btn.textContent = s.name;
-      btn.onclick = () => selectStaffName(s.name);
+      btn.onclick = () => selectStaffName(s);
       grid.appendChild(btn);
     });
-    if (list.length === 0) {
+    if (staffListCache.length === 0) {
       errEl.textContent = "スタッフが登録されていません。管理者に登録を依頼してください。";
       errEl.classList.remove("hidden");
     }
@@ -180,28 +182,17 @@ async function init() {
 }
 init();
 
-async function selectStaffName(name) {
+function selectStaffName(staff) {
   const errEl = document.getElementById("idError");
   errEl.classList.add("hidden");
-  try {
-    const result = await apiCall(API_URL, "staffLogin", { name, password: "" });
-    if (!result.ok && result.error === "not_found") {
-      errEl.textContent = "その名前のスタッフは見つかりませんでした。";
-      errEl.classList.remove("hidden");
-      return;
-    }
-    pendingStaff = result.staff;
-    document.getElementById("stepId").classList.add("hidden");
-    if (result.needsSetup) {
-      document.getElementById("setupHint").textContent = pendingStaff.name + " さん、初めてのログインですね。パスワードを設定してください。";
-      document.getElementById("stepSetup").classList.remove("hidden");
-    } else {
-      document.getElementById("pwHint").textContent = pendingStaff.name + " さん、パスワードを入力してください。";
-      document.getElementById("stepPassword").classList.remove("hidden");
-    }
-  } catch (e) {
-    errEl.textContent = "通信エラー: " + e.message;
-    errEl.classList.remove("hidden");
+  pendingStaff = staff;
+  document.getElementById("stepId").classList.add("hidden");
+  if (!staff.hasPassword) {
+    document.getElementById("setupHint").textContent = staff.name + " さん、初めてのログインですね。パスワードを設定してください。";
+    document.getElementById("stepSetup").classList.remove("hidden");
+  } else {
+    document.getElementById("pwHint").textContent = staff.name + " さん、パスワードを入力してください。";
+    document.getElementById("stepPassword").classList.remove("hidden");
   }
 }
 
