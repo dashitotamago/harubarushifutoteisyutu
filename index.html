@@ -53,6 +53,45 @@
     font-weight:600; font-size:14px; cursor:pointer; color:#0f172a;
   }
   .namebtn:hover { border-color:#5eead4; }
+
+  /* 上部の画面切替タブ */
+  .maintabs { display:flex; gap:6px; margin-bottom:14px; }
+  .maintab { flex:1; text-align:center; padding:8px 10px; border-radius:8px; font-size:13px; cursor:pointer; background:#fff; border:1px solid #e2e8f0; color:#64748b; }
+  .maintab.active { background:#0f172a; color:#fff; border-color:#0f172a; }
+
+  /* 確定シフト確認(日別/半月/月) */
+  .tabs { display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap; }
+  .tab { padding:6px 10px; border-radius:8px; font-size:12px; cursor:pointer; background:#fff; border:1px solid #e2e8f0; color:#64748b; }
+  .tab.active { background:#0f172a; color:#fff; border-color:#0f172a; }
+  .navrow { display:flex; align-items:center; gap:8px; margin-bottom:12px; }
+  .datebar { display:flex; align-items:center; gap:6px; border:1px solid #e2e8f0; border-radius:8px; padding:5px 8px; background:#fff; }
+  .datebar input { width:auto; margin:0; padding:2px; border:none; }
+  .gridwrap { overflow-x:auto; background:#fff; border:1px solid #e2e8f0; border-radius:14px; }
+  .gridinner { min-width:820px; }
+  .ghead { display:flex; border-bottom:1px solid #f1f5f9; }
+  .gnamecol { width:110px; flex-shrink:0; padding:8px 8px; font-size:10px; color:#94a3b8; font-weight:600; }
+  .ghours { display:flex; flex:1; }
+  .ghour { flex:1; text-align:center; font-size:9px; color:#94a3b8; padding:6px 0; border-left:1px solid #f8fafc; }
+  .growrap { display:flex; border-bottom:1px solid #f8fafc; }
+  .gname { width:110px; flex-shrink:0; padding:8px; }
+  .gname .n { font-size:11px; font-weight:700; color:#334155; }
+  .gtrack { position:relative; flex:1; padding:8px 0; }
+  .glines { position:absolute; inset:0; display:flex; pointer-events:none; }
+  .gline { flex:1; border-left:1px solid #f8fafc; }
+  .gasn { position:relative; height:26px; }
+  .gasnbar {
+    position:absolute; top:0; height:26px; background:#dcfce7; border:1px solid #4ade80; border-radius:4px;
+    font-size:10px; font-weight:700; color:#166534; line-height:24px; padding:0 5px; overflow:hidden; white-space:nowrap;
+  }
+  .gasnbreak { position:absolute; top:0; height:26px; background:rgba(255,255,255,.65); border-left:1px dashed #4ade80; border-right:1px dashed #4ade80; }
+  .glegend { display:flex; gap:12px; font-size:10px; color:#94a3b8; margin-top:8px; flex-wrap:wrap; align-items:center; }
+  .glegend .sw { display:inline-block; width:14px; height:8px; border-radius:3px; vertical-align:middle; margin-right:4px; }
+  #periodTable { width:100%; border-collapse:collapse; font-size:11px; }
+  #periodTable th, #periodTable td { text-align:center; white-space:nowrap; padding:6px 7px; border-bottom:1px solid #f8fafc; }
+  #periodTable th:first-child, #periodTable td:first-child { text-align:left; position:sticky; left:0; background:#fff; min-width:100px; }
+  #periodTable td.pcell.on { background:#f0fdfa; color:#0f766e; font-weight:600; }
+  #periodTable .pname { font-weight:700; color:#334155; font-size:11px; }
+  #periodTable .phours { font-size:9px; color:#0d9488; }
 </style>
 </head>
 <body>
@@ -96,20 +135,76 @@
       <button class="logout" onclick="logout()">ログアウト</button>
     </div>
 
-    <div id="banner" class="banner hidden">✅ シフトの提出が完了しました!</div>
-
-    <div class="monthnav">
-      <button onclick="changeMonth(-1)">←</button>
-      <div class="label" id="monthLabel"></div>
-      <button onclick="changeMonth(1)">→</button>
+    <div class="maintabs">
+      <div class="maintab active" data-main="submit" onclick="switchMainView('submit')">シフト提出</div>
+      <div class="maintab" data-main="confirm" onclick="switchMainView('confirm')">確定シフト確認</div>
     </div>
 
-    <div class="toolrow">
-      <a onclick="autofill()">✨ 提出履歴から自動入力</a>
-      <a class="danger" onclick="clearAll()">全削除</a>
+    <!-- シフト提出 -->
+    <div id="submitSection">
+      <div id="banner" class="banner hidden">✅ シフトの提出が完了しました!</div>
+
+      <div class="monthnav">
+        <button onclick="changeMonth(-1)">←</button>
+        <div class="label" id="monthLabel"></div>
+        <button onclick="changeMonth(1)">→</button>
+      </div>
+
+      <div class="toolrow">
+        <a onclick="autofill()">✨ 提出履歴から自動入力</a>
+        <a class="danger" onclick="clearAll()">全削除</a>
+      </div>
+
+      <div id="cardList"></div>
     </div>
 
-    <div id="cardList"></div>
+    <!-- 確定シフト確認(閲覧専用) -->
+    <div id="confirmSection" class="hidden">
+      <div class="tabs">
+        <div class="tab active" data-view="day" onclick="switchConfirmView('day')">日別</div>
+        <div class="tab" data-view="2week" onclick="switchConfirmView('2week')">前半・後半</div>
+        <div class="tab" data-view="month" onclick="switchConfirmView('month')">1ヶ月</div>
+      </div>
+
+      <!-- 日別 -->
+      <div id="confirmDayView">
+        <div class="navrow">
+          <button class="secondary small" onclick="confirmDayChange(-1)">←</button>
+          <div class="datebar"><input id="confirmDate" type="date" onchange="renderConfirmDay()" /></div>
+          <button class="secondary small" onclick="confirmDayChange(1)">→</button>
+          <button class="secondary small" onclick="confirmDayToday()">今日</button>
+        </div>
+        <div class="gridwrap">
+          <div class="gridinner">
+            <div class="ghead">
+              <div class="gnamecol">スタッフ</div>
+              <div class="ghours" id="cghours"></div>
+            </div>
+            <div id="confirmGridRows"></div>
+          </div>
+        </div>
+        <div class="glegend">
+          <span><span class="sw" style="background:#dcfce7; border:1px solid #4ade80"></span>確定シフト(白い切れ目=休憩)</span>
+        </div>
+      </div>
+
+      <!-- 半月・月 -->
+      <div id="confirmPeriodView" class="hidden">
+        <div class="navrow">
+          <button class="secondary small" onclick="confirmPeriodChange(-1)">←</button>
+          <div id="confirmPeriodLabel" style="font-weight:600; font-size:13px;"></div>
+          <button class="secondary small" onclick="confirmPeriodChange(1)">→</button>
+          <button class="secondary small" onclick="confirmPeriodToday()">今日</button>
+        </div>
+        <div class="gridwrap">
+          <table id="periodTable">
+            <thead><tr id="confirmPeriodHead"></tr></thead>
+            <tbody id="confirmPeriodBody"></tbody>
+          </table>
+        </div>
+        <p class="muted">スタッフ名の横の時間は、その期間の確定シフト合計時間(休憩を除く)です。</p>
+      </div>
+    </div>
   </div>
 
   <div id="bottombar" class="bottombar hidden">
@@ -244,6 +339,195 @@ async function showMain() {
   document.getElementById("bottombar").classList.remove("hidden");
   document.getElementById("staffNameLabel").textContent = loggedInStaff.name + " さん";
   await refreshAll();
+}
+
+/* ---- シフト提出 / 確定シフト確認 の切替 ---- */
+function switchMainView(key) {
+  document.querySelectorAll(".maintab").forEach((t) => t.classList.toggle("active", t.dataset.main === key));
+  document.getElementById("submitSection").classList.toggle("hidden", key !== "submit");
+  document.getElementById("confirmSection").classList.toggle("hidden", key !== "confirm");
+  document.getElementById("bottombar").classList.toggle("hidden", key !== "submit");
+  if (key === "confirm") {
+    if (!document.getElementById("confirmDate").value) document.getElementById("confirmDate").value = todayStr();
+    if (confirmViewMode === "day") renderConfirmDay();
+    else renderConfirmPeriod();
+  }
+}
+
+/* ==== 確定シフト確認(全スタッフ・閲覧専用) ==== */
+const CGRID_START_HOUR = 9;
+const CGRID_END_HOUR = 24;
+const CGRID_HOURS = Array.from({ length: CGRID_END_HOUR - CGRID_START_HOUR }, (_, i) => CGRID_START_HOUR + i);
+const CGRID_RANGE_MIN = (CGRID_END_HOUR - CGRID_START_HOUR) * 60;
+let confirmDateVal = todayStr();
+let confirmViewMode = "day"; // day | 2week | month
+let confirmPeriodAnchor = todayStr();
+
+function switchConfirmView(mode) {
+  confirmViewMode = mode;
+  document.querySelectorAll('.tabs .tab[data-view]').forEach((t) => t.classList.toggle("active", t.dataset.view === mode));
+  document.getElementById("confirmDayView").classList.toggle("hidden", mode !== "day");
+  document.getElementById("confirmPeriodView").classList.toggle("hidden", mode === "day");
+  if (mode === "day") renderConfirmDay();
+  else renderConfirmPeriod();
+}
+
+function cClampMin(min) { return Math.max(CGRID_START_HOUR * 60, Math.min(CGRID_END_HOUR * 60, min)); }
+function cPos(start, end) {
+  const left = ((cClampMin(toMin(start)) - CGRID_START_HOUR * 60) / CGRID_RANGE_MIN) * 100;
+  const width = ((cClampMin(toMin(end)) - cClampMin(toMin(start))) / CGRID_RANGE_MIN) * 100;
+  return { left, width };
+}
+function cHours(a) {
+  const breakMin = (a.breakStart && a.breakEnd) ? Math.max(0, toMin(a.breakEnd) - toMin(a.breakStart)) : 0;
+  return Math.max(0, toMin(a.end) - toMin(a.start) - breakMin) / 60;
+}
+
+function confirmDayChange(n) {
+  confirmDateVal = addDays(document.getElementById("confirmDate").value || confirmDateVal, n);
+  document.getElementById("confirmDate").value = confirmDateVal;
+  renderConfirmDay();
+}
+function confirmDayToday() {
+  confirmDateVal = todayStr();
+  document.getElementById("confirmDate").value = confirmDateVal;
+  renderConfirmDay();
+}
+
+async function renderConfirmDay() {
+  const date = document.getElementById("confirmDate").value || confirmDateVal;
+  confirmDateVal = date;
+  document.getElementById("cghours").innerHTML = CGRID_HOURS.map((h) => `<div class="ghour">${h}時</div>`).join("");
+  const rows = document.getElementById("confirmGridRows");
+  rows.innerHTML = `<div class="muted" style="padding:14px;">読み込み中...</div>`;
+  let dayData;
+  try {
+    dayData = await apiCall(API_URL, "getDayData", { date });
+  } catch (e) {
+    rows.innerHTML = `<div class="error" style="padding:14px;">読み込みに失敗しました: ${e.message}</div>`;
+    return;
+  }
+  rows.innerHTML = "";
+  staffListCache.forEach((s) => {
+    const mine = dayData.assigned.filter((a) => a.staffId === s.id);
+    const asg = mine.length ? mine[mine.length - 1] : null;
+    const dayH = mine.reduce((sum, a) => sum + cHours(a), 0);
+    const barHtml = asg ? (() => {
+      const p = cPos(asg.start, asg.end);
+      const hasBreak = asg.breakStart && asg.breakEnd;
+      const breakHtml = hasBreak ? (() => {
+        const bp = cPos(asg.breakStart, asg.breakEnd);
+        const relLeft = p.width > 0 ? ((bp.left - p.left) / p.width) * 100 : 0;
+        const relWidth = p.width > 0 ? (bp.width / p.width) * 100 : 0;
+        return `<div class="gasnbreak" style="left:${relLeft}%; width:${relWidth}%"></div>`;
+      })() : "";
+      return `<div class="gasnbar" style="left:${p.left}%; width:${p.width}%">${asg.start}-${asg.end}${breakHtml}</div>`;
+    })() : "";
+    const row = document.createElement("div");
+    row.className = "growrap";
+    row.innerHTML = `
+      <div class="gname"><div class="n">${s.name}${dayH > 0 ? ` <span class="phours">(${dayH.toFixed(1)}h)</span>` : ""}</div></div>
+      <div class="gtrack">
+        <div class="glines">${CGRID_HOURS.map(() => '<div class="gline"></div>').join("")}</div>
+        <div class="gasn">${barHtml}</div>
+      </div>
+    `;
+    rows.appendChild(row);
+  });
+  if (staffListCache.length === 0) {
+    rows.innerHTML = `<div class="muted" style="padding:14px;">スタッフが登録されていません</div>`;
+  }
+}
+
+function pad2c(n) { return String(n).padStart(2, "0"); }
+
+function confirmHalfPeriodDates(anchorDate) {
+  const d = new Date(anchorDate + "T00:00:00");
+  const y = d.getFullYear(), m = d.getMonth() + 1, day = d.getDate();
+  if (day <= 15) return Array.from({ length: 15 }, (_, i) => `${y}-${pad2c(m)}-${pad2c(i + 1)}`);
+  const last = new Date(y, m, 0).getDate();
+  return Array.from({ length: last - 15 }, (_, i) => `${y}-${pad2c(m)}-${pad2c(16 + i)}`);
+}
+function confirmShiftHalfPeriod(anchorDate, dir) {
+  const d = new Date(anchorDate + "T00:00:00");
+  const y = d.getFullYear(), m = d.getMonth() + 1, day = d.getDate();
+  const isFirstHalf = day <= 15;
+  if (dir > 0) {
+    if (isFirstHalf) return `${y}-${pad2c(m)}-16`;
+    const nd = new Date(y, m, 1);
+    return `${nd.getFullYear()}-${pad2c(nd.getMonth() + 1)}-01`;
+  }
+  if (!isFirstHalf) return `${y}-${pad2c(m)}-01`;
+  const pd = new Date(y, m - 2, 16);
+  return `${pd.getFullYear()}-${pad2c(pd.getMonth() + 1)}-16`;
+}
+
+function confirmPeriodDates() {
+  if (confirmViewMode === "2week") return confirmHalfPeriodDates(confirmPeriodAnchor);
+  const d = new Date(confirmPeriodAnchor + "T00:00:00");
+  const y = d.getFullYear(), m = d.getMonth() + 1;
+  const last = new Date(y, m, 0).getDate();
+  return Array.from({ length: last }, (_, i) => `${y}-${pad2c(m)}-${pad2c(i + 1)}`);
+}
+
+function confirmPeriodChange(n) {
+  if (confirmViewMode === "2week") {
+    confirmPeriodAnchor = confirmShiftHalfPeriod(confirmPeriodAnchor, n);
+  } else {
+    const d = new Date(confirmPeriodAnchor + "T00:00:00");
+    d.setMonth(d.getMonth() + n);
+    confirmPeriodAnchor = `${d.getFullYear()}-${pad2c(d.getMonth() + 1)}-01`;
+  }
+  renderConfirmPeriod();
+}
+function confirmPeriodToday() {
+  confirmPeriodAnchor = todayStr();
+  renderConfirmPeriod();
+}
+
+async function renderConfirmPeriod() {
+  const dates = confirmPeriodDates();
+  let label;
+  if (confirmViewMode === "2week") {
+    const y = Number(dates[0].slice(0, 4));
+    const m = Number(dates[0].slice(5, 7));
+    const isFirstHalf = Number(dates[0].slice(8, 10)) === 1;
+    label = `${y}年${m}月${isFirstHalf ? "前半(1〜15日)" : "後半(16〜" + dates[dates.length - 1].slice(8, 10) + "日)"}`;
+  } else {
+    label = dates[0].slice(0, 7);
+  }
+  document.getElementById("confirmPeriodLabel").textContent = label;
+
+  const headRow = document.getElementById("confirmPeriodHead");
+  headRow.innerHTML = `<th>スタッフ</th>` + dates.map((d) => `<th>${Number(d.slice(5,7))}/${Number(d.slice(8,10))}</th>`).join("");
+
+  const body = document.getElementById("confirmPeriodBody");
+  body.innerHTML = `<tr><td colspan="${dates.length+1}" class="muted" style="padding:10px;">読み込み中...</td></tr>`;
+  let periodData;
+  try {
+    periodData = await apiCall(API_URL, "getPeriodData", { startDate: dates[0], endDate: dates[dates.length - 1] });
+  } catch (e) {
+    body.innerHTML = `<tr><td colspan="${dates.length+1}" class="error" style="padding:10px;">読み込みに失敗しました: ${e.message}</td></tr>`;
+    return;
+  }
+  body.innerHTML = "";
+  staffListCache.forEach((s) => {
+    const mine = periodData.assigned.filter((a) => a.staffId === s.id);
+    const totalHours = mine.reduce((sum, a) => sum + cHours(a), 0);
+    const byDate = {};
+    mine.forEach((a) => { byDate[a.date] = a; });
+    const tr = document.createElement("tr");
+    const nameCell = `<td><div class="pname">${s.name}</div><div class="phours">${totalHours.toFixed(1)}時間</div></td>`;
+    const cells = dates.map((d) => {
+      const a = byDate[d];
+      return a ? `<td class="pcell on">${a.start}-${a.end}</td>` : `<td class="pcell"></td>`;
+    }).join("");
+    tr.innerHTML = nameCell + cells;
+    body.appendChild(tr);
+  });
+  if (staffListCache.length === 0) {
+    body.innerHTML = `<tr><td colspan="${dates.length+1}" class="muted" style="padding:10px;">スタッフが登録されていません</td></tr>`;
+  }
 }
 
 function changeMonth(n) {
