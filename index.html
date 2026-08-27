@@ -355,7 +355,7 @@ function switchMainView(key) {
 }
 
 /* ==== 確定シフト確認(全スタッフ・閲覧専用) ==== */
-const CGRID_START_HOUR = 9;
+const CGRID_START_HOUR = 5; // 早朝の仕込みシフトなどにも対応できるよう5時開始に拡大
 const CGRID_END_HOUR = 24;
 const CGRID_HOURS = Array.from({ length: CGRID_END_HOUR - CGRID_START_HOUR }, (_, i) => CGRID_START_HOUR + i);
 const CGRID_RANGE_MIN = (CGRID_END_HOUR - CGRID_START_HOUR) * 60;
@@ -374,8 +374,12 @@ function switchConfirmView(mode) {
 
 function cClampMin(min) { return Math.max(CGRID_START_HOUR * 60, Math.min(CGRID_END_HOUR * 60, min)); }
 function cPos(start, end) {
-  const left = ((cClampMin(toMin(start)) - CGRID_START_HOUR * 60) / CGRID_RANGE_MIN) * 100;
-  const width = ((cClampMin(toMin(end)) - cClampMin(toMin(start))) / CGRID_RANGE_MIN) * 100;
+  let s = toMin(start);
+  let e = toMin(end);
+  if (e <= s) e += 24 * 60; // 終了時刻が開始より前(=日をまたぐ)場合は翌日として扱う
+  const left = ((cClampMin(s) - CGRID_START_HOUR * 60) / CGRID_RANGE_MIN) * 100;
+  let width = ((cClampMin(e) - cClampMin(s)) / CGRID_RANGE_MIN) * 100;
+  if (width > 0 && width < 1.5) width = 1.5;
   return { left, width };
 }
 function cHours(a) {
