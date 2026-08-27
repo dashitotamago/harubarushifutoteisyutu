@@ -7,7 +7,7 @@
 <style>
   * { box-sizing: border-box; }
   body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans",sans-serif; background:#f8fafc; color:#0f172a; padding-bottom:70px; }
-  .wrap { max-width: 480px; margin: 0 auto; padding: 20px; }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 14px; }
   a.back { font-size:12px; color:#94a3b8; text-decoration:none; }
   h2 { font-size:16px; margin: 12px 0 16px; display:flex; align-items:center; gap:8px; }
   label { display:block; font-size:12px; color:#64748b; margin-bottom:4px; }
@@ -66,14 +66,14 @@
   .navrow { display:flex; align-items:center; gap:8px; margin-bottom:12px; }
   .datebar { display:flex; align-items:center; gap:6px; border:1px solid #e2e8f0; border-radius:8px; padding:5px 8px; background:#fff; }
   .datebar input { width:auto; margin:0; padding:2px; border:none; }
-  .gridwrap { overflow-x:auto; background:#fff; border:1px solid #e2e8f0; border-radius:14px; }
-  .gridinner { min-width:820px; }
+  .gridwrap { width:100%; background:#fff; border:1px solid #e2e8f0; border-radius:14px; }
+  .gridinner { width:100%; }
   .ghead { display:flex; border-bottom:1px solid #f1f5f9; }
-  .gnamecol { width:110px; flex-shrink:0; padding:8px 8px; font-size:10px; color:#94a3b8; font-weight:600; }
+  .gnamecol { width:80px; flex-shrink:0; padding:6px 6px; font-size:9px; color:#94a3b8; font-weight:600; }
   .ghours { display:flex; flex:1; }
-  .ghour { flex:1; text-align:center; font-size:9px; color:#94a3b8; padding:6px 0; border-left:1px solid #f8fafc; }
+  .ghour { flex:1; min-width:0; text-align:center; font-size:8px; color:#94a3b8; padding:5px 0; border-left:1px solid #f8fafc; overflow:hidden; white-space:nowrap; }
   .growrap { display:flex; border-bottom:1px solid #f8fafc; }
-  .gname { width:110px; flex-shrink:0; padding:8px; }
+  .gname { width:80px; flex-shrink:0; padding:6px; }
   .gname .n { font-size:11px; font-weight:700; color:#334155; }
   .gtrack { position:relative; flex:1; padding:8px 0; }
   .glines { position:absolute; inset:0; display:flex; pointer-events:none; }
@@ -86,12 +86,12 @@
   .gasnbreak { position:absolute; top:0; height:26px; background:rgba(255,255,255,.65); border-left:1px dashed #4ade80; border-right:1px dashed #4ade80; }
   .glegend { display:flex; gap:12px; font-size:10px; color:#94a3b8; margin-top:8px; flex-wrap:wrap; align-items:center; }
   .glegend .sw { display:inline-block; width:14px; height:8px; border-radius:3px; vertical-align:middle; margin-right:4px; }
-  #periodTable { width:100%; border-collapse:collapse; font-size:11px; }
-  #periodTable th, #periodTable td { text-align:center; white-space:nowrap; padding:6px 7px; border-bottom:1px solid #f8fafc; }
-  #periodTable th:first-child, #periodTable td:first-child { text-align:left; position:sticky; left:0; background:#fff; min-width:100px; }
+  #periodTable { table-layout:fixed; width:100%; font-size:10px; }
+  #periodTable th, #periodTable td { text-align:center; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding:4px 2px; border-bottom:1px solid #f8fafc; }
+  #periodTable th:first-child, #periodTable td:first-child { text-align:left; background:#fff; width:60px; padding-left:5px; }
   #periodTable td.pcell.on { background:#f0fdfa; color:#0f766e; font-weight:600; }
-  #periodTable .pname { font-weight:700; color:#334155; font-size:11px; }
-  #periodTable .phours { font-size:9px; color:#0d9488; }
+  #periodTable .pname { font-weight:700; color:#334155; font-size:10px; }
+  #periodTable .phours { font-size:8px; color:#0d9488; }
 </style>
 </head>
 <body>
