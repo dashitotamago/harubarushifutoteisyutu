@@ -602,7 +602,6 @@ function renderCards() {
     if (hasWork) workDays++;
     const wd = new Date(date + "T00:00:00").getDay();
     const wdClass = wd === 0 ? "sun" : wd === 6 ? "sat" : "";
-    const cnt = monthCounts[date] || { off: 0, work: 0 };
 
     const card = document.createElement("div");
     card.className = "card";
@@ -625,7 +624,6 @@ function renderCards() {
         <a class="togglelink" onclick="toggleDayOff('${date}', true)">この日は休み希望にする</a>
       `}
       <input class="memoinput" placeholder="メモがあれば入力" id="memo_${date}" value="${mine && mine.memo ? mine.memo : ""}" onchange="memoChanged('${date}')" ${isOff ? "" : ""}>
-      <div class="countbar"><span>休み希望人数: ${cnt.off}人・勤務希望人数: ${cnt.work}人</span><span>›</span></div>
     `;
     list.appendChild(card);
   }
