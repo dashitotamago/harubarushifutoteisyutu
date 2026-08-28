@@ -299,7 +299,15 @@ async function submitSetup() {
   if (pw1.length < 4) { err.textContent = "パスワードは4文字以上で設定してください。"; err.classList.remove("hidden"); return; }
   if (pw1 !== pw2) { err.textContent = "パスワードが一致しません。"; err.classList.remove("hidden"); return; }
   try {
-    await apiCall(API_URL, "setStaffPassword", { id: pendingStaff.id, password: pw1 });
+    const result = await apiCall(API_URL, "setStaffPassword", { id: pendingStaff.id, password: pw1 });
+    if (!result.ok) {
+      err.textContent = "パスワードの保存に失敗しました。もう一度お名前の選択からやり直してください。";
+      err.classList.remove("hidden");
+      return;
+    }
+    // このセッション内で名前一覧を使い回しても「未設定」のまま扱われないよう、ローカルのキャッシュも更新しておく
+    const cached = staffListCache.find((s) => s.id === pendingStaff.id);
+    if (cached) cached.hasPassword = true;
     loggedInStaff = pendingStaff;
     await showMain();
   } catch (e) {
