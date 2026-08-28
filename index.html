@@ -47,6 +47,7 @@
   .hidden { display:none; }
   #loading { text-align:center; color:#94a3b8; padding:60px 0; font-size:13px; }
   .banner { display:flex; align-items:center; gap:8px; background:#f0fdfa; border:1px solid #99f6e4; color:#0f766e; border-radius:10px; padding:10px 12px; margin-bottom:14px; font-size:12px; }
+  .deadlinewarn { background:#fef3c7; border:1px solid #f59e0b; color:#92400e; border-radius:10px; padding:10px 12px; margin-bottom:14px; font-size:12px; }
   .namegrid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px; }
   .namebtn {
     background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:18px 10px; text-align:center;
@@ -149,6 +150,8 @@
         <div class="label" id="monthLabel"></div>
         <button onclick="changeMonth(1)">→</button>
       </div>
+
+      <div id="deadlineBanner"></div>
 
       <div class="toolrow">
         <a onclick="autofill()">✨ 提出履歴から自動入力</a>
@@ -363,7 +366,7 @@ function switchMainView(key) {
 }
 
 /* ==== 確定シフト確認(全スタッフ・閲覧専用) ==== */
-const CGRID_START_HOUR = 5; // 早朝の仕込みシフトなどにも対応できるよう5時開始に拡大
+const CGRID_START_HOUR = 8; // シフト管理画面と合わせて8時〜24時
 const CGRID_END_HOUR = 24;
 const CGRID_HOURS = Array.from({ length: CGRID_END_HOUR - CGRID_START_HOUR }, (_, i) => CGRID_START_HOUR + i);
 const CGRID_RANGE_MIN = (CGRID_END_HOUR - CGRID_START_HOUR) * 60;
@@ -559,13 +562,30 @@ async function refreshAll() {
   list.innerHTML = `<p style="text-align:center; color:#94a3b8; font-size:13px;">読み込み中...</p>`;
   try {
     // 1回のAPI呼び出しで、自分のシフト履歴と月間集計を両方まとめて取得(通信回数を減らして軽量化)
-    const data = await apiCall(API_URL, "getStaffPageData", { staffId: loggedInStaff.id, year: ym.y, month: ym.m });
+    const [data, status] = await Promise.all([
+      apiCall(API_URL, "getStaffPageData", { staffId: loggedInStaff.id, year: ym.y, month: ym.m }),
+      apiCall(API_URL, "getSubmissionStatus", { year: ym.y, month: ym.m }),
+    ]);
     myShifts = data.myShifts;
     monthCounts = data.monthCounts;
+    submissionStatus = status;
+    renderDeadlineBanner();
     renderCards();
   } catch (e) {
     list.innerHTML = `<p style="text-align:center; color:#e11d48; font-size:13px;">読み込みに失敗しました: ${e.message}</p>`;
   }
+}
+
+let submissionStatus = null;
+
+function renderDeadlineBanner() {
+  const el = document.getElementById("deadlineBanner");
+  if (!submissionStatus) { el.innerHTML = ""; return; }
+  const closed = [];
+  if (!submissionStatus.first.open) closed.push(`1〜15日分(期限: ${submissionStatus.first.deadline})`);
+  if (!submissionStatus.second.open) closed.push(`16日〜月末分(期限: ${submissionStatus.second.deadline})`);
+  if (closed.length === 0) { el.innerHTML = ""; return; }
+  el.innerHTML = `<div class="deadlinewarn">⚠️ ${closed.join("・")}は提出期限を過ぎているため、編集できません。管理者に期限の解除を依頼してください。</div>`;
 }
 
 function renderCards() {
@@ -612,13 +632,22 @@ function renderCards() {
   document.getElementById("workDaysCount").textContent = workDays;
 }
 
+function submissionClosedAlert() {
+  alert("この日は提出期限を過ぎているため、変更できません。管理者に期限の解除を依頼してください。");
+}
+
 async function timeChanged(date) {
   const start = document.getElementById("start_" + date).value;
   const end = document.getElementById("end_" + date).value;
   if (!start || !end) return;
   if (toMin(start) >= toMin(end)) { alert("終了時刻は開始時刻より後にしてください"); return; }
   const memoEl = document.getElementById("memo_" + date);
-  await apiCall(API_URL, "submitShift", { staffId: loggedInStaff.id, date, start, end, memo: memoEl ? memoEl.value : "" });
+  try {
+    await apiCall(API_URL, "submitShift", { staffId: loggedInStaff.id, date, start, end, memo: memoEl ? memoEl.value : "" });
+  } catch (e) {
+    if (e.message === "submission_closed") { submissionClosedAlert(); await refreshAll(); return; }
+    throw e;
+  }
   await refreshAll();
 }
 
@@ -626,16 +655,31 @@ async function memoChanged(date) {
   const mine = myShifts.find((s) => s.date === date);
   if (!mine || !mine.start || !mine.end) return; // 時間未入力の日はメモだけ先に保存しない(まず時間を入れてもらう)
   const memo = document.getElementById("memo_" + date).value;
-  await apiCall(API_URL, "submitShift", { staffId: loggedInStaff.id, date, start: mine.start, end: mine.end, memo });
+  try {
+    await apiCall(API_URL, "submitShift", { staffId: loggedInStaff.id, date, start: mine.start, end: mine.end, memo });
+  } catch (e) {
+    if (e.message === "submission_closed") { submissionClosedAlert(); await refreshAll(); return; }
+    throw e;
+  }
 }
 
 async function toggleDayOff(date, dayOff) {
-  await apiCall(API_URL, "setDayOff", { staffId: loggedInStaff.id, date, dayOff });
+  try {
+    await apiCall(API_URL, "setDayOff", { staffId: loggedInStaff.id, date, dayOff });
+  } catch (e) {
+    if (e.message === "submission_closed") { submissionClosedAlert(); await refreshAll(); return; }
+    throw e;
+  }
   await refreshAll();
 }
 
 async function deleteDay(date) {
-  await apiCall(API_URL, "deleteShift", { staffId: loggedInStaff.id, date });
+  try {
+    await apiCall(API_URL, "deleteShift", { staffId: loggedInStaff.id, date });
+  } catch (e) {
+    if (e.message === "submission_closed") { submissionClosedAlert(); await refreshAll(); return; }
+    throw e;
+  }
   await refreshAll();
 }
 
