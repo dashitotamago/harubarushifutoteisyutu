@@ -253,6 +253,7 @@ let monthCounts = {};    // 全スタッフ分の日別集計(休み希望人数
 let ym = (() => { const d = new Date(); return { y: d.getFullYear(), m: d.getMonth() + 1 }; })();
 
 let staffListCache = [];
+let positionListCache = [];
 
 async function init() {
   document.getElementById("loading").classList.add("hidden");
@@ -261,6 +262,7 @@ async function init() {
   const errEl = document.getElementById("idError");
   try {
     staffListCache = await apiCall(API_URL, "getStaffList");
+    positionListCache = await apiCall(API_URL, "getPositions");
     grid.innerHTML = "";
     staffListCache.forEach((s) => {
       const btn = document.createElement("div");
@@ -432,11 +434,19 @@ async function renderConfirmDay() {
       const hasBreak = asg.breakStart && asg.breakEnd;
       const breakHtml = hasBreak ? (() => {
         const bp = cPos(asg.breakStart, asg.breakEnd);
-        const relLeft = p.width > 0 ? ((bp.left - p.left) / p.width) * 100 : 0;
-        const relWidth = p.width > 0 ? (bp.width / p.width) * 100 : 0;
-        return `<div class="gasnbreak" style="left:${relLeft}%; width:${relWidth}%"></div>`;
+        return `<div class="gasnbreak" style="left:${bp.left}%; width:${bp.width}%"></div>`;
       })() : "";
-      return `<div class="gasnbar" style="left:${p.left}%; width:${p.width}%">${asg.start}-${asg.end}${breakHtml}</div>`;
+      if (asg.segments && asg.segments.length > 0) {
+        const segBars = asg.segments.map((seg) => {
+          const sp = cPos(seg.start, seg.end);
+          const pos = positionListCache.find((x) => x.id === seg.positionId);
+          const color = pos ? pos.color : "#cbd5e1";
+          const label = pos ? pos.name : "?";
+          return `<div class="gasnbar" style="left:${sp.left}%; width:${sp.width}%; background:${color}; border-color:${color};">${label} ${seg.start}-${seg.end}</div>`;
+        }).join("");
+        return segBars + breakHtml;
+      }
+      return `<div class="gasnbar" style="left:${p.left}%; width:${p.width}%">${asg.start}-${asg.end}</div>${breakHtml}`;
     })() : "";
     const row = document.createElement("div");
     row.className = "growrap";
