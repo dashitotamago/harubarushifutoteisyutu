@@ -545,7 +545,21 @@ async function renderConfirmPeriod() {
     const nameCell = `<td><div class="pname">${s.name}</div><div class="phours">${totalHours.toFixed(1)}時間</div></td>`;
     const cells = dates.map((d) => {
       const a = byDate[d];
-      return a ? `<td class="pcell on">${a.start}-${a.end}</td>` : `<td class="pcell"></td>`;
+      if (!a) return `<td class="pcell"></td>`;
+      if (a.segments && a.segments.length > 0) {
+        const names = a.segments.map((seg) => {
+          const pos = positionListCache.find((x) => x.id === seg.positionId);
+          return `${pos ? pos.name : "?"} ${seg.start}-${seg.end}`;
+        }).join(" / ");
+        const colors = a.segments.map((seg) => {
+          const pos = positionListCache.find((x) => x.id === seg.positionId);
+          return pos ? pos.color : "#cbd5e1";
+        });
+        const stepPct = 100 / colors.length;
+        const gradient = colors.map((c, i) => `${c} ${(i*stepPct).toFixed(0)}%, ${c} ${((i+1)*stepPct).toFixed(0)}%`).join(", ");
+        return `<td class="pcell on" style="background:linear-gradient(90deg, ${gradient});" title="${names}">${a.start}-${a.end}</td>`;
+      }
+      return `<td class="pcell on" title="${a.start}-${a.end}">${a.start}-${a.end}</td>`;
     }).join("");
     tr.innerHTML = nameCell + cells;
     body.appendChild(tr);
