@@ -720,9 +720,9 @@ function renderCards() {
         </div>
       ` : `
         <div class="timerow">
-          <input type="time" id="start_${date}" value="${hasWork ? mine.start : ""}" onchange="timeChanged('${date}')">
+          <input type="time" id="start_${date}" step="1800" value="${hasWork ? mine.start : ""}" onchange="timeChanged('${date}')">
           <span>〜</span>
-          <input type="time" id="end_${date}" value="${hasWork ? mine.end : ""}" onchange="timeChanged('${date}')">
+          <input type="time" id="end_${date}" step="1800" value="${hasWork ? mine.end : ""}" onchange="timeChanged('${date}')">
         </div>
         <a class="togglelink" onclick="toggleDayOff('${date}', true)">この日は休み希望にする</a>
       `}
