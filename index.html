@@ -691,6 +691,24 @@ function renderDeadlineBanner() {
   el.innerHTML = `<div class="deadlinewarn">⚠️ ${closed.join("・")}は提出期限を過ぎているため、編集できません。管理者に期限の解除を依頼してください。</div>`;
 }
 
+function timeOptionsHtml(selectedValue) {
+  let html = `<option value="">--:--</option>`;
+  for (let h = 0; h < 24; h++) {
+    for (let m = 0; m < 60; m += 30) {
+      const v = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+      html += `<option value="${v}" ${v === selectedValue ? "selected" : ""}>${v}</option>`;
+    }
+  }
+  return html;
+}
+
+function isDateLocked(date) {
+  if (!submissionStatus) return false;
+  const day = Number(date.slice(8, 10));
+  const status = day <= 15 ? submissionStatus.first : submissionStatus.second;
+  return !status.open;
+}
+
 function renderCards() {
   const list = document.getElementById("cardList");
   list.innerHTML = "";
@@ -705,28 +723,31 @@ function renderCards() {
     if (hasWork) workDays++;
     const wd = new Date(date + "T00:00:00").getDay();
     const wdClass = wd === 0 ? "sun" : wd === 6 ? "sat" : "";
+    const locked = isDateLocked(date);
 
     const card = document.createElement("div");
     card.className = "card";
+    if (locked) card.style.opacity = "0.55";
     card.innerHTML = `
       <div class="cardtop">
-        <div class="datelabel ${wdClass}">${ym.m}/${day}(${WEEKDAY_JP[wd]})</div>
-        ${mine ? `<button class="del" onclick="deleteDay('${date}')">削除</button>` : ""}
+        <div class="datelabel ${wdClass}">${ym.m}/${day}(${WEEKDAY_JP[wd]})${locked ? " 🔒" : ""}</div>
+        ${mine && !locked ? `<button class="del" onclick="deleteDay('${date}')">削除</button>` : ""}
       </div>
       ${isOff ? `
         <div class="dayoffbox">
           <span>この日は休み希望です</span>
-          <a onclick="toggleDayOff('${date}', false)">取り消す</a>
+          ${locked ? "" : `<a onclick="toggleDayOff('${date}', false)">取り消す</a>`}
         </div>
       ` : `
         <div class="timerow">
-          <input type="time" id="start_${date}" step="1800" value="${hasWork ? mine.start : ""}" onchange="timeChanged('${date}')">
+          <select id="start_${date}" onchange="timeChanged('${date}')" ${locked ? "disabled" : ""}>${timeOptionsHtml(hasWork ? mine.start : "")}</select>
           <span>〜</span>
-          <input type="time" id="end_${date}" step="1800" value="${hasWork ? mine.end : ""}" onchange="timeChanged('${date}')">
+          <select id="end_${date}" onchange="timeChanged('${date}')" ${locked ? "disabled" : ""}>${timeOptionsHtml(hasWork ? mine.end : "")}</select>
         </div>
-        <a class="togglelink" onclick="toggleDayOff('${date}', true)">この日は休み希望にする</a>
+        ${locked ? "" : `<a class="togglelink" onclick="toggleDayOff('${date}', true)">この日は休み希望にする</a>`}
       `}
-      <input class="memoinput" placeholder="メモがあれば入力" id="memo_${date}" value="${mine && mine.memo ? mine.memo : ""}" onchange="memoChanged('${date}')" ${isOff ? "" : ""}>
+      <input class="memoinput" placeholder="メモがあれば入力" id="memo_${date}" value="${mine && mine.memo ? mine.memo : ""}" onchange="memoChanged('${date}')" ${locked ? "disabled" : ""}>
+      ${locked ? `<div class="muted" style="font-size:11px; margin-top:4px;">提出期限を過ぎているため編集できません</div>` : ""}
     `;
     list.appendChild(card);
   }
@@ -806,7 +827,7 @@ async function autofill() {
   for (let day = 1; day <= n; day++) {
     const date = dateStr(ym.y, ym.m, day);
     const already = myShifts.find((s) => s.date === date);
-    if (already) continue;
+    if (already || isDateLocked(date)) continue; // 提出期限を過ぎた日はスキップ
     const wd = new Date(date + "T00:00:00").getDay();
     const match = byWeekday[wd];
     if (match) {
@@ -814,7 +835,7 @@ async function autofill() {
     }
   }
   if (tasks.length === 0) { alert("自動入力できる履歴がありませんでした。"); return; }
-  await Promise.all(tasks);
+  await Promise.allSettled(tasks);
   await refreshAll();
 }
 
