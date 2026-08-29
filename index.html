@@ -59,6 +59,13 @@
   .maintabs { display:flex; gap:6px; margin-bottom:14px; }
   .maintab { flex:1; text-align:center; padding:8px 10px; border-radius:8px; font-size:13px; cursor:pointer; background:#fff; border:1px solid #e2e8f0; color:#64748b; }
   .maintab.active { background:#0f172a; color:#fff; border-color:#0f172a; }
+  .punchcard { display:flex; align-items:center; gap:10px; background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:10px 12px; margin-bottom:8px; }
+  .punchcard .ptype { font-size:12px; font-weight:700; }
+  .punchcard .ptype.in { color:#0d9488; } .punchcard .ptype.out { color:#64748b; }
+  .punchcard .ptype.breakStart { color:#d97706; } .punchcard .ptype.breakEnd { color:#0284c7; }
+  .punchcard .pdate { font-size:11px; color:#94a3b8; }
+  .punchcard .ptime { margin-left:auto; font-size:14px; font-weight:700; color:#334155; }
+  .punchcard .pedited { font-size:10px; color:#d97706; }
 
   /* 確定シフト確認(日別/半月/月) */
   .tabs { display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap; }
@@ -139,6 +146,7 @@
     <div class="maintabs">
       <div class="maintab active" data-main="submit" onclick="switchMainView('submit')">シフト提出</div>
       <div class="maintab" data-main="confirm" onclick="switchMainView('confirm')">確定シフト確認</div>
+      <div class="maintab" data-main="punches" onclick="switchMainView('punches')">打刻履歴</div>
     </div>
 
     <!-- シフト提出 -->
@@ -173,7 +181,10 @@
       <div id="confirmDayView">
         <div class="navrow">
           <button class="secondary small" onclick="confirmDayChange(-1)">←</button>
-          <div class="datebar"><input id="confirmDate" type="date" onchange="renderConfirmDay()" /></div>
+          <div class="datebar">
+            <input id="confirmDate" type="date" onchange="renderConfirmDay()" />
+            <span id="confirmDateWeekday" style="font-size:12px; font-weight:600; color:#64748b;"></span>
+          </div>
           <button class="secondary small" onclick="confirmDayChange(1)">→</button>
           <button class="secondary small" onclick="confirmDayToday()">今日</button>
         </div>
@@ -207,6 +218,16 @@
         </div>
         <p class="muted">スタッフ名の横の時間は、その期間の確定シフト合計時間(休憩を除く)です。</p>
       </div>
+    </div>
+
+    <!-- 打刻履歴(自分の分のみ、閲覧専用) -->
+    <div id="punchesSection" class="hidden">
+      <div class="monthnav">
+        <button onclick="changePunchMonth(-1)">←</button>
+        <div class="label" id="punchMonthLabel"></div>
+        <button onclick="changePunchMonth(1)">→</button>
+      </div>
+      <div id="punchList"></div>
     </div>
   </div>
 
@@ -359,12 +380,57 @@ function switchMainView(key) {
   document.querySelectorAll(".maintab").forEach((t) => t.classList.toggle("active", t.dataset.main === key));
   document.getElementById("submitSection").classList.toggle("hidden", key !== "submit");
   document.getElementById("confirmSection").classList.toggle("hidden", key !== "confirm");
+  document.getElementById("punchesSection").classList.toggle("hidden", key !== "punches");
   document.getElementById("bottombar").classList.toggle("hidden", key !== "submit");
   if (key === "confirm") {
     if (!document.getElementById("confirmDate").value) document.getElementById("confirmDate").value = todayStr();
     if (confirmViewMode === "day") renderConfirmDay();
     else renderConfirmPeriod();
   }
+  if (key === "punches") renderPunches();
+}
+
+/* ==== 打刻履歴(自分の分のみ・閲覧専用) ==== */
+let punchYm = (() => { const d = new Date(); return { y: d.getFullYear(), m: d.getMonth() + 1 }; })();
+const PUNCH_TYPE_LABEL = { in: "出勤", out: "退勤", breakStart: "休憩開始", breakEnd: "休憩終了" };
+
+function changePunchMonth(n) {
+  const total = punchYm.y * 12 + (punchYm.m - 1) + n;
+  punchYm = { y: Math.floor(total / 12), m: (total % 12) + 1 };
+  renderPunches();
+}
+
+async function renderPunches() {
+  document.getElementById("punchMonthLabel").textContent = `${punchYm.y}年${punchYm.m}月`;
+  const list = document.getElementById("punchList");
+  list.innerHTML = `<p style="text-align:center; color:#94a3b8; font-size:13px;">読み込み中...</p>`;
+  let punches;
+  try {
+    punches = await apiCall(API_URL, "getMyPunches", { staffId: loggedInStaff.id, year: punchYm.y, month: punchYm.m });
+  } catch (e) {
+    list.innerHTML = `<p style="text-align:center; color:#e11d48; font-size:13px;">読み込みに失敗しました: ${e.message}</p>`;
+    return;
+  }
+  if (punches.length === 0) {
+    list.innerHTML = `<p style="text-align:center; color:#94a3b8; font-size:13px;">この月の打刻履歴はまだありません</p>`;
+    return;
+  }
+  list.innerHTML = "";
+  punches.slice().reverse().forEach((p) => {
+    const t = new Date(p.timestamp);
+    const timeStr = String(t.getHours()).padStart(2, "0") + ":" + String(t.getMinutes()).padStart(2, "0");
+    const wd = weekdayOf(p.date);
+    const div = document.createElement("div");
+    div.className = "punchcard";
+    div.innerHTML = `
+      <div>
+        <div class="ptype ${p.type}">${PUNCH_TYPE_LABEL[p.type] || p.type}</div>
+        <div class="pdate">${Number(p.date.slice(5,7))}/${Number(p.date.slice(8,10))}(${wd})${p.editedByAdmin === true || p.editedByAdmin === "TRUE" ? ` <span class="pedited">・管理者が修正</span>` : ""}</div>
+      </div>
+      <div class="ptime">${timeStr}</div>
+    `;
+    list.appendChild(div);
+  });
 }
 
 /* ==== 確定シフト確認(全スタッフ・閲覧専用) ==== */
@@ -424,6 +490,7 @@ async function renderConfirmDay() {
     rows.innerHTML = `<div class="error" style="padding:14px;">読み込みに失敗しました: ${e.message}</div>`;
     return;
   }
+  document.getElementById("confirmDateWeekday").textContent = `(${weekdayOf(date)}${dayData.isHoliday ? "祝" : ""})`;
   rows.innerHTML = "";
   staffListCache.forEach((s) => {
     const mine = dayData.assigned.filter((a) => a.staffId === s.id);
@@ -523,18 +590,27 @@ async function renderConfirmPeriod() {
   }
   document.getElementById("confirmPeriodLabel").textContent = label;
 
-  const headRow = document.getElementById("confirmPeriodHead");
-  headRow.innerHTML = `<th>スタッフ</th>` + dates.map((d) => `<th>${Number(d.slice(5,7))}/${Number(d.slice(8,10))}</th>`).join("");
-
   const body = document.getElementById("confirmPeriodBody");
   body.innerHTML = `<tr><td colspan="${dates.length+1}" class="muted" style="padding:10px;">読み込み中...</td></tr>`;
-  let periodData;
+  let periodData, holidaysInRange;
   try {
-    periodData = await apiCall(API_URL, "getPeriodData", { startDate: dates[0], endDate: dates[dates.length - 1] });
+    [periodData, holidaysInRange] = await Promise.all([
+      apiCall(API_URL, "getPeriodData", { startDate: dates[0], endDate: dates[dates.length - 1] }),
+      apiCall(API_URL, "getHolidaysInRange", { startDate: dates[0], endDate: dates[dates.length - 1] }),
+    ]);
   } catch (e) {
     body.innerHTML = `<tr><td colspan="${dates.length+1}" class="error" style="padding:10px;">読み込みに失敗しました: ${e.message}</td></tr>`;
     return;
   }
+  const holidaySet = new Set(holidaysInRange);
+
+  const headRow = document.getElementById("confirmPeriodHead");
+  headRow.innerHTML = `<th>スタッフ</th>` + dates.map((d) => {
+    const day = Number(d.slice(8, 10));
+    const wd = weekdayOf(d);
+    return `<th>${day}(${wd}${holidaySet.has(d) ? "祝" : ""})</th>`;
+  }).join("");
+
   body.innerHTML = "";
   staffListCache.forEach((s) => {
     const mine = periodData.assigned.filter((a) => a.staffId === s.id);
@@ -579,6 +655,9 @@ function daysInMonth(y, m) { return new Date(y, m, 0).getDate(); }
 function pad2(n) { return String(n).padStart(2, "0"); }
 function dateStr(y, m, day) { return `${y}-${pad2(m)}-${pad2(day)}`; }
 const WEEKDAY_JP = ["日","月","火","水","木","金","土"];
+function weekdayOf(dateStr) {
+  return WEEKDAY_JP[new Date(dateStr + "T00:00:00").getDay()];
+}
 
 async function refreshAll() {
   document.getElementById("monthLabel").textContent = `${ym.y}年${ym.m}月`;
